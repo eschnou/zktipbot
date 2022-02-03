@@ -1,9 +1,11 @@
 import * as React from "react";
+import * as zksync from "zksync";
 import styled from "styled-components";
 import WalletConnect from "@walletconnect/client";
 import QRCodeModal from "@walletconnect/qrcode-modal";
 import { convertUtf8ToHex } from "@walletconnect/utils";
 import { IInternalEvent } from "@walletconnect/types";
+import WalletConnectProvider from "@walletconnect/web3-provider";
 import Button from "./components/Button";
 import Column from "./components/Column";
 import Wrapper from "./components/Wrapper";
@@ -17,12 +19,14 @@ import {
   verifySignature,
   hashTypedDataMessage,
   hashMessage,
+  getChainData,
 } from "./helpers/utilities";
 import { convertAmountToRawNumber, convertStringToHex } from "./helpers/bignumber";
 import { IAssetData } from "./helpers/types";
 import Banner from "./components/Banner";
 import AccountAssets from "./components/AccountAssets";
 import { eip712 } from "./helpers/eip712";
+import { ethers } from "ethers";
 
 const SLayout = styled.div`
   position: relative;
@@ -452,6 +456,83 @@ class App extends React.Component<any, any> {
     }
   };
 
+  public testSignBatch = async () => {
+    const { connector, address } = this.state;
+
+    if (!connector) {
+      return;
+    }
+
+    try {
+      // open modal
+      this.toggleModal();
+
+      // toggle pending request indicator
+      this.setState({ pendingRequest: true });
+
+      // sign typed data
+      const chain = getChainData(this.state.chainId);
+      console.warn("chain data", chain);
+
+      // start zkSync specific code
+      const walletConnectProvider = new WalletConnectProvider({ 
+        connector,
+        infuraId: process.env.REACT_APP_INFURA_PROJECT_ID 
+      });
+      await walletConnectProvider.enable();
+      const web3Provider = new ethers.providers.Web3Provider(walletConnectProvider);
+      const syncProvider = await zksync.getDefaultProvider(chain.network as any);
+      const wallet = await zksync.RemoteWallet.fromEthSigner(web3Provider, syncProvider);
+      // end zkSync specific code
+
+      const batchBuilder = wallet.batchBuilder();
+      batchBuilder.addTransfer({
+        to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
+        token: "ETH",
+        amount: "1",
+      });
+      batchBuilder.addTransfer({
+        to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
+        token: "ETH",
+        amount: "2",
+      });
+      // batchBuilder.addWithdraw({
+      //   ethAddress: "0x123456",
+      //   token: 123,
+      //   amount: "1230000000",
+      // });
+      // batchBuilder.addSwap({
+        // orders: []
+        // token: 123,
+        // amount: "1230000000",
+      // });
+      const result = await batchBuilder.build();
+      console.warn("output is", result);
+
+      // verify signature
+      // const hash = hashTypedDataMessage(message);
+      // const valid = await verifySignature(address, result, hash, connector.chainId);
+      const valid = true;
+
+      // format displayed result
+      const formattedResult = {
+        method: "zkSync_signBatch",
+        address,
+        valid,
+        result: JSON.stringify(result, null, 2).slice(0, 600),
+      };
+
+      // display result
+      this.setState({
+        connector,
+        pendingRequest: false,
+        result: formattedResult || null,
+      });
+    } catch (error) {
+      console.error(error);
+      this.setState({ connector, pendingRequest: false, result: null });
+    }
+  }
   public render = () => {
     const {
       assets,
@@ -463,6 +544,7 @@ class App extends React.Component<any, any> {
       pendingRequest,
       result,
     } = this.state;
+
     return (
       <SLayout>
         <Column maxWidth={1000} spanHeight>
@@ -502,6 +584,10 @@ class App extends React.Component<any, any> {
 
                     <STestButton left onClick={this.testSignTypedData}>
                       {"eth_signTypedData"}
+                    </STestButton>
+
+                    <STestButton left onClick={this.testSignBatch}>
+                      {"zkSync_signBatch"}
                     </STestButton>
                   </STestButtonContainer>
                 </Column>
