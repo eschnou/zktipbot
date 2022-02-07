@@ -256,7 +256,7 @@ class App extends React.Component<any, any> {
       accounts,
       address,
     });
-    this.getAccountAssets();
+    // this.getAccountAssets();
   };
 
   public onDisconnect = async () => {
@@ -266,7 +266,7 @@ class App extends React.Component<any, any> {
   public onSessionUpdate = async (accounts: string[], chainId: number) => {
     const address = accounts[0];
     await this.setState({ chainId, accounts, address });
-    await this.getAccountAssets();
+    // await this.getAccountAssets();
   };
 
   public getAccountAssets = async () => {
@@ -485,29 +485,24 @@ class App extends React.Component<any, any> {
       const wallet = await zksync.RemoteWallet.fromEthSigner(web3Provider, syncProvider);
       // end zkSync specific code
 
-      const batchBuilder = wallet.batchBuilder();
+      console.warn("address is", wallet.address());
+      const nonce = await wallet.getNonce();
+      console.warn("nonce is", nonce);
+      const batchBuilder = wallet.batchBuilder(nonce);
       batchBuilder.addTransfer({
         to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
         token: "ETH",
         amount: "1",
       });
-      batchBuilder.addTransfer({
-        to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
-        token: "ETH",
-        amount: "2",
-      });
-      // batchBuilder.addWithdraw({
-      //   ethAddress: "0x123456",
-      //   token: 123,
-      //   amount: "1230000000",
-      // });
-      // batchBuilder.addSwap({
-        // orders: []
-        // token: 123,
-        // amount: "1230000000",
-      // });
-      const result = await batchBuilder.build();
-      console.warn("output is", result);
+      const batch = await batchBuilder.build("ETH");
+      console.warn("batch is", batch);
+
+      let txs: zksync.Transaction[];
+      if (batch.signature) {
+          txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs, [batch.signature]);
+      } else {
+          txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs);
+      }
 
       // verify signature
       // const hash = hashTypedDataMessage(message);
@@ -519,7 +514,7 @@ class App extends React.Component<any, any> {
         method: "zkSync_signBatch",
         address,
         valid,
-        result: JSON.stringify(result, null, 2).slice(0, 600),
+        result: JSON.stringify(batch, null, 2).slice(0, 600),
       };
 
       // display result
@@ -574,33 +569,11 @@ class App extends React.Component<any, any> {
                 <h3>Actions</h3>
                 <Column center>
                   <STestButtonContainer>
-                    <STestButton left onClick={this.testSendTransaction}>
-                      {"eth_sendTransaction"}
-                    </STestButton>
-
-                    <STestButton left onClick={this.testSignMessage}>
-                      {"eth_sign"}
-                    </STestButton>
-
-                    <STestButton left onClick={this.testSignTypedData}>
-                      {"eth_signTypedData"}
-                    </STestButton>
-
                     <STestButton left onClick={this.testSignBatch}>
-                      {"zkSync_signBatch"}
+                      zkSync_signBatch
                     </STestButton>
                   </STestButtonContainer>
                 </Column>
-                <h3>Balances</h3>
-                {!fetching ? (
-                  <AccountAssets chainId={chainId} assets={assets} />
-                ) : (
-                  <Column center>
-                    <SContainer>
-                      <Loader />
-                    </SContainer>
-                  </Column>
-                )}
               </SBalances>
             )}
           </SContent>
