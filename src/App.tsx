@@ -456,7 +456,7 @@ class App extends React.Component<any, any> {
     }
   };
 
-  public testSignBatch = async () => {
+  public testSignBatch = async (isOrder: boolean) => {
     const { connector, address } = this.state;
 
     if (!connector) {
@@ -486,23 +486,44 @@ class App extends React.Component<any, any> {
       // end zkSync specific code
 
       console.warn("address is", wallet.address());
-      const nonce = await wallet.getNonce();
-      console.warn("nonce is", nonce);
-      const batchBuilder = wallet.batchBuilder(nonce);
-      batchBuilder.addTransfer({
-        to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
-        token: "ETH",
-        amount: "1",
-      });
-      const batch = await batchBuilder.build("ETH");
-      console.warn("batch is", batch);
+      let result;
 
-      let txs: zksync.Transaction[];
-      if (batch.signature) {
-          txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs, [batch.signature]);
+      if (isOrder) {
+        const now_unix = Date.now() / 1000 | 0
+        const two_minute_expiry = now_unix + 120
+        const one_day_expiry = now_unix + 24*3600;
+
+        // ETH = 0, USDC = 2
+        result = await wallet.signOrder({
+          amount: "1",
+          ratio: zksync.utils.tokenRatio({ 0: "1", 2: "3000" }),
+          // ratio: zksync.utils.weiRatio({ 0: "1", 2: "3000" }),
+          // ratio: ['1000000000000000000', '3000000000'] as any,
+          tokenSell: 0,
+          tokenBuy: 2,
+          validUntil: one_day_expiry,
+        })
       } else {
-          txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs);
+        const nonce = await wallet.getNonce();
+        console.warn("nonce is", nonce);
+        const batchBuilder = wallet.batchBuilder(nonce);
+        batchBuilder.addTransfer({
+          to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
+          token: "ETH",
+          amount: "1",
+        });
+        const batch = await batchBuilder.build("ETH");
+
+        let txs: zksync.Transaction[];
+        if (batch.signature) {
+            txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs, [batch.signature]);
+        } else {
+            txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs);
+        }
+
+        result = batch
       }
+      console.warn("result is", result);
 
       // verify signature
       // const hash = hashTypedDataMessage(message);
@@ -514,7 +535,7 @@ class App extends React.Component<any, any> {
         method: "zkSync_signBatch",
         address,
         valid,
-        result: JSON.stringify(batch, null, 2).slice(0, 600),
+        result: JSON.stringify(result ?? null, null, 2).slice(0, 600),
       };
 
       // display result
@@ -523,11 +544,13 @@ class App extends React.Component<any, any> {
         pendingRequest: false,
         result: formattedResult || null,
       });
+
     } catch (error) {
       console.error(error);
       this.setState({ connector, pendingRequest: false, result: null });
     }
   }
+
   public render = () => {
     const {
       assets,
@@ -569,8 +592,11 @@ class App extends React.Component<any, any> {
                 <h3>Actions</h3>
                 <Column center>
                   <STestButtonContainer>
-                    <STestButton left onClick={this.testSignBatch}>
-                      zkSync_signBatch
+                    <STestButton left onClick={() => this.testSignBatch(false)}>
+                      zkSync_signBatch (transfer)
+                    </STestButton>
+                    <STestButton left onClick={() => this.testSignBatch(true)}>
+                      zkSync_signBatch (order)
                     </STestButton>
                   </STestButtonContainer>
                 </Column>
