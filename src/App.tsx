@@ -456,7 +456,7 @@ class App extends React.Component<any, any> {
     }
   };
 
-  public testSignBatch = async (isOrder: boolean) => {
+  public testSignBatch = async (type: "cpk" | "transfers" | "order") => {
     const { connector, address } = this.state;
 
     if (!connector) {
@@ -488,7 +488,7 @@ class App extends React.Component<any, any> {
       console.warn("address is", wallet.address());
       let result;
 
-      if (isOrder) {
+      if (type === "order") {
         const now_unix = Date.now() / 1000 | 0
         const two_minute_expiry = now_unix + 120
         const one_day_expiry = now_unix + 24*3600;
@@ -503,7 +503,7 @@ class App extends React.Component<any, any> {
           tokenBuy: 2,
           validUntil: one_day_expiry,
         })
-      } else {
+      } else if (type === "transfers") {
         const nonce = await wallet.getNonce();
         console.warn("nonce is", nonce);
         const batchBuilder = wallet.batchBuilder(nonce);
@@ -512,16 +512,22 @@ class App extends React.Component<any, any> {
           token: "ETH",
           amount: "1",
         });
+        batchBuilder.addTransfer({
+          to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
+          token: "ETH",
+          amount: "2",
+        });
         const batch = await batchBuilder.build("ETH");
 
-        let txs: zksync.Transaction[];
         if (batch.signature) {
-            txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs, [batch.signature]);
+            await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs, [batch.signature]);
         } else {
-            txs = await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs);
+            await zksync.submitSignedTransactionsBatch(syncProvider, batch.txs);
         }
 
         result = batch
+      } else if (type === "cpk") {
+        result = await wallet.syncSignerPubKeyHash()
       }
       console.warn("result is", result);
 
@@ -592,10 +598,13 @@ class App extends React.Component<any, any> {
                 <h3>Actions</h3>
                 <Column center>
                   <STestButtonContainer>
-                    <STestButton left onClick={() => this.testSignBatch(false)}>
-                      zkSync_signBatch (transfer)
+                    <STestButton left onClick={() => this.testSignBatch("cpk")}>
+                      zkSync_signerPubKeyHash
                     </STestButton>
-                    <STestButton left onClick={() => this.testSignBatch(true)}>
+                    <STestButton left onClick={() => this.testSignBatch("transfers")}>
+                      zkSync_signBatch (2 transfers)
+                    </STestButton>
+                    <STestButton left onClick={() => this.testSignBatch("order")}>
                       zkSync_signBatch (order)
                     </STestButton>
                   </STestButtonContainer>
