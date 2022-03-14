@@ -472,20 +472,18 @@ class App extends React.Component<any, any> {
 
       // sign typed data
       const chain = getChainData(this.state.chainId);
-      console.warn("chain data", chain);
 
       // start zkSync specific code
       const walletConnectProvider = new WalletConnectProvider({ 
         connector,
-        infuraId: process.env.REACT_APP_INFURA_PROJECT_ID 
+        infuraId: process.env.REACT_APP_INFURA_PROJECT_ID,
       });
       await walletConnectProvider.enable();
-      const web3Provider = new ethers.providers.Web3Provider(walletConnectProvider);
+      const ethersProvider = new ethers.providers.Web3Provider(walletConnectProvider);
       const syncProvider = await zksync.getDefaultProvider(chain.network as any);
-      const wallet = await zksync.RemoteWallet.fromEthSigner(web3Provider, syncProvider);
+      const wallet = await zksync.RemoteWallet.fromEthSigner(ethersProvider, syncProvider);
       // end zkSync specific code
 
-      console.warn("address is", wallet.address());
       let result;
 
       if (type === "order") {
@@ -505,7 +503,6 @@ class App extends React.Component<any, any> {
         })
       } else if (type === "transfers") {
         const nonce = await wallet.getNonce();
-        console.warn("nonce is", nonce);
         const batchBuilder = wallet.batchBuilder(nonce);
         batchBuilder.addTransfer({
           to: "0x574B685fDE8464ceDd7CE57d254881B11DaF0814",
