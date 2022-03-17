@@ -579,13 +579,11 @@ class App extends React.Component<any, any> {
             {!address && !assets.length ? (
               <SLanding center>
                 <h3>
-                  {`Try out WalletConnect`}
-                  <br />
-                  <span>{`v${process.env.REACT_APP_VERSION}`}</span>
+                  {`ZkSync Tipping Bot`}
                 </h3>
                 <SButtonContainer>
                   <SConnectButton left onClick={this.connect} fetching={fetching}>
-                    {"Connect to WalletConnect"}
+                    {"Login with Argent"}
                   </SConnectButton>
                 </SButtonContainer>
               </SLanding>
@@ -595,14 +593,8 @@ class App extends React.Component<any, any> {
                 <h3>Actions</h3>
                 <Column center>
                   <STestButtonContainer>
-                    <STestButton left onClick={() => this.testSignBatch("cpk")}>
-                      zkSync_signerPubKeyHash
-                    </STestButton>
-                    <STestButton left onClick={() => this.testSignBatch("transfers")}>
-                      zkSync_signBatch (2 transfers)
-                    </STestButton>
-                    <STestButton left onClick={() => this.testSignBatch("order")}>
-                      zkSync_signBatch (order)
+                    <STestButton left onClick={() => {location.href = "https://cloud-dev.argent-api.com/v1/oauth2/authorize/normal/twitter/" + address} }>
+                      Link with twitter
                     </STestButton>
                   </STestButtonContainer>
                 </Column>

@@ -47,7 +47,7 @@ const SButton = styled.button<IButtonStyleProps>`
   border: none;
   border-style: none;
   box-sizing: border-box;
-  background-color: ${({ outline, color }) => (outline ? "transparent" : `rgb(${colors[color]})`)};
+  background-color: black;
   border: ${({ outline, color }) => (outline ? `1px solid rgb(${colors[color]})` : "none")};
   color: ${({ outline, color }) => (outline ? `rgb(${colors[color]})` : `rgb(${colors.white})`)};
   box-shadow: ${({ outline }) => (outline ? "none" : `${shadows.soft}`)};
